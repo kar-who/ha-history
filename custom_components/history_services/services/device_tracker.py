@@ -203,21 +203,27 @@ async def async_register_service(hass: HomeAssistant):
         #        linestring.timespan.end = str(p[1].last_reported)
 
         directory = "www/history/"
+        fileext = ".kml"
+
+        if "directory" in call.data and call.data["directory"]:
+            directory = call.data["directory"]
+            if not directory.endswith('/'):
+                directory += '/'
+
         filename = "device_tracker"
-        fileext = "kml"
+        if "filename" in call.data and call.data["filename"]:
+            filename = call.data["filename"]
+
+        # Append extension if not already present
+        if not filename.endswith(fileext):
+            filename += fileext
+
         file = ""
-
-        if "directory" in call.data:
-            if call_directory := call.data["directory"]:
-                directory = call_directory
-
-        if "filename" in call.data:
-            filename = ""
-            if call_filename := call.data["filename"]:
-                filename = call_filename.replace('.', '/')
-
-        if directory and filename and fileext:
-            file = hass.config.path(f'{directory}{filename}.{fileext}')
+        # If absolute path is provided in filename, ignore directory payload
+        if filename.startswith("/"):
+            file = filename
+        else:
+            file = hass.config.path(f'{directory}{filename}')
 
         if file:
             file_path = Path(file)
