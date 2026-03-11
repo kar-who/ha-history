@@ -113,12 +113,15 @@ async def async_register_service(hass: HomeAssistant):
         # Why is it necessary to do deepcopy when enriching state?
         # - It messes up the values of those added attributes (duplicates, etc.)
         # - Maybe because of the caching nature of LazyState from recorder?
-        for i, p in enumerate(response_result):
+        for p in response_result:
+            if "latitude" not in p.attributes or "longitude" not in p.attributes:
+                continue
+                
             point = copy.deepcopy(p)
             point.attributes["timestamp"] = dt_util.as_local(point.last_updated).isoformat()
-            if i > 0:
-                point.attributes["distance"] = haversine2(result[i - 1].attributes, point.attributes)
-                point.attributes["length"] = timediff(result[i - 1].last_updated, point.last_updated)
+            if len(result) > 0:
+                point.attributes["distance"] = haversine2(result[-1].attributes, point.attributes)
+                point.attributes["length"] = timediff(result[-1].last_updated, point.last_updated)
             else:
                 point.attributes["distance"] = 0
                 point.attributes["length"] = 0
@@ -185,7 +188,7 @@ async def async_register_service(hass: HomeAssistant):
             linestring = kml.newlinestring(name = (str(dt_util.as_local(s[0].last_updated)) + " - " + str(dt_util.as_local(s[-1].last_updated)) + ", duration: " + str(t) + ", length: " + str(l) + " km"))
             linestring.timespan.begin = str(s[0].last_updated)
             linestring.timespan.end = str(s[-1].last_updated)
-            linestring.coords = [(p.attributes["longitude"], p.attributes["latitude"], p.attributes["altitude"]) for p in s]
+            linestring.coords = [(p.attributes["longitude"], p.attributes["latitude"], p.attributes.get("altitude", 0)) for p in s]
             if attributes:
                 linestring.extendeddata.schemadata.schemaurl = schema.id
                 for item in attributes_list:
