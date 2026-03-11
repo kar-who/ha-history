@@ -19,7 +19,7 @@ def open_file(filepath, mode, x):
     with open(filepath, mode) as file:
         return x(file)
 
-def get_significant_states(hass: HomeAssistant, call: ServiceCall):
+async def get_significant_states(hass: HomeAssistant, call: ServiceCall):
     entity_id = call.data["entity_id"]
     entity_ids = list([entity_id])
 
@@ -47,7 +47,8 @@ def get_significant_states(hass: HomeAssistant, call: ServiceCall):
     minimal_response = False
     no_attributes = False
 
-    response = history.get_significant_states(
+    response = await hass.async_add_executor_job(
+        history.get_significant_states,
         hass,
         start_time,
         end_time,

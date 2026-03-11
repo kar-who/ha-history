@@ -99,9 +99,8 @@ def group_when(iterable, predicate):
     yield iterable[x:size]
 
 async def async_register_service(hass: HomeAssistant):
-    @callback
     async def export_service(call: ServiceCall) -> ServiceResponse:
-        response = get_significant_states(hass, call)
+        response = await get_significant_states(hass, call)
         response_result = response["result"]
 
         if not response_result:

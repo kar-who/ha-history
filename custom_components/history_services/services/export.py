@@ -10,9 +10,8 @@ from ..common import *
 _LOGGER = logging.getLogger(__name__)
 
 async def async_register_service(hass: HomeAssistant):
-    @callback
     async def export_service(call: ServiceCall) -> ServiceResponse:
-        response = get_significant_states(hass, call)
+        response = await get_significant_states(hass, call)
 
         if not response["result"]:
             return response
