@@ -47,7 +47,9 @@ async def get_significant_states(hass: HomeAssistant, call: ServiceCall):
     minimal_response = False
     no_attributes = False
 
-    response = await hass.async_add_executor_job(
+    from homeassistant.components.recorder import history, get_instance
+    
+    response = await get_instance(hass).async_add_executor_job(
         history.get_significant_states,
         hass,
         start_time,
