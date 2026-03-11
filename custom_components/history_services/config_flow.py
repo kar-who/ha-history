@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
+import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
@@ -28,5 +29,5 @@ class HistoryServicesConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=None,
+            data_schema=vol.Schema({}),
         )
