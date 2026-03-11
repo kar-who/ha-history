@@ -1,0 +1,13 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "History Services",
+                "description": "Do you want to set up History Services? This integration doesn't require any further configuration."
+            }
+        },
+        "abort": {
+            "single_instance_allowed": "Only a single instance of History Services is allowed."
+        }
+    }
+}
