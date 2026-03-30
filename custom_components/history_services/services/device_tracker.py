@@ -28,6 +28,7 @@ _SERVICE_SCHEMA = SERVICE_SCHEMA
 _SERVICE_SCHEMA = _SERVICE_SCHEMA.extend({
     vol.Required("max_gap"): int,
     vol.Required("min_radius"): int,
+    vol.Optional("max_speed"): int,
     vol.Optional("attributes"): cv.string,
     vol.Optional("directory"): cv.string,
     vol.Optional("filename"): cv.string,
@@ -89,6 +90,40 @@ def remove_close_points(points, threshold_km):
             filtered_points.append(point)
     return filtered_points
 
+def filter_gps_jumps(points, max_speed_kmh):
+    if not points or max_speed_kmh <= 0:
+        return points
+
+    filtered = [points[0]]
+    for point in points[1:]:
+        time_delta = point.attributes["length"]
+        if isinstance(time_delta, td):
+            seconds = time_delta.total_seconds()
+        else:
+            seconds = float(time_delta)
+
+        if seconds <= 0:
+            filtered.append(point)
+            continue
+
+        distance_km = point.attributes["distance"]
+        implied_speed = (distance_km / seconds) * 3600
+
+        if implied_speed <= max_speed_kmh:
+            filtered.append(point)
+        else:
+            _LOGGER.debug(
+                "GPS jump filtered: implied speed %.1f km/h exceeds max %d km/h (distance: %.3f km, time: %.0f s)",
+                implied_speed, max_speed_kmh, distance_km, seconds,
+            )
+
+    # Recalculate distance/length for points that now follow a different predecessor
+    for i in range(1, len(filtered)):
+        filtered[i].attributes["distance"] = haversine2(filtered[i - 1].attributes, filtered[i].attributes)
+        filtered[i].attributes["length"] = timediff(filtered[i - 1].last_updated, filtered[i].last_updated)
+
+    return filtered
+
 def group_when(iterable, predicate):
     i, x, size = 0, 0, len(iterable)
     while i < size - 1:
@@ -126,6 +161,10 @@ async def async_register_service(hass: HomeAssistant):
                 point.attributes["distance"] = 0
                 point.attributes["length"] = 0
             result.append(point)
+
+        max_speed = call.data.get("max_speed", 0)
+        if max_speed and max_speed > 0:
+            result = filter_gps_jumps(result, max_speed)
 
         min_radius = call.data["min_radius"] / 1000
         max_gap = td(seconds = call.data["max_gap"])

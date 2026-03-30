@@ -79,6 +79,15 @@ export_device_tracker:
         number:
           min: 0
           max: 1000
+    max_speed:
+      name: Max speed [km/h]
+      description: Maximum plausible speed — points implying faster travel are filtered as GPS jumps
+      required: false
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 1000
     attributes:
       name: Attributes
       description: Additional attributes to include
