@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <!-- Stylized map background -->
+  <g opacity="0.12">
+    <!-- Map grid lines - horizontal -->
+    <line x1="40" y1="160" x2="600" y2="160" stroke="#3a7abd" stroke-width="2"/>
+    <line x1="40" y1="260" x2="600" y2="260" stroke="#3a7abd" stroke-width="2"/>
+    <line x1="40" y1="360" x2="600" y2="360" stroke="#3a7abd" stroke-width="2"/>
+    <line x1="40" y1="460" x2="600" y2="460" stroke="#3a7abd" stroke-width="2"/>
+    <!-- Map grid lines - vertical -->
+    <line x1="120" y1="80" x2="120" y2="560" stroke="#3a7abd" stroke-width="2"/>
+    <line x1="240" y1="80" x2="240" y2="560" stroke="#3a7abd" stroke-width="2"/>
+    <line x1="360" y1="80" x2="360" y2="560" stroke="#3a7abd" stroke-width="2"/>
+    <line x1="480" y1="80" x2="480" y2="560" stroke="#3a7abd" stroke-width="2"/>
+    <!-- Stylized road/river curves -->
+    <path d="M40 300 Q160 220 280 300 Q400 380 520 280 Q580 240 600 250" fill="none" stroke="#3a7abd" stroke-width="14" stroke-linecap="round"/>
+    <path d="M40 440 Q200 400 300 460 Q420 520 600 420" fill="none" stroke="#3a7abd" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <!-- Track/route path -->
+  <path d="M100 400 Q160 350 230 380 Q300 410 350 360 Q400 310 440 330"
+        fill="none" stroke="#b0bec5" stroke-width="14" stroke-linecap="round"/>
+  <path d="M100 400 Q160 350 230 380 Q300 410 350 360 Q400 310 440 330"
+        fill="none" stroke="#78909c" stroke-width="14" stroke-linecap="round"
+        stroke-dasharray="6 14"/>
+  <!-- Track waypoint dots -->
+  <circle cx="100" cy="400" r="10" fill="#78909c" stroke="white" stroke-width="3"/>
+  <circle cx="230" cy="380" r="8" fill="#90a4ae" stroke="white" stroke-width="2.5"/>
+  <circle cx="350" cy="360" r="8" fill="#90a4ae" stroke="white" stroke-width="2.5"/>
+  <circle cx="440" cy="330" r="10" fill="#78909c" stroke="white" stroke-width="3"/>
+
+  <!-- GPS Location Pin - classic teardrop/balloon style -->
+  <g transform="translate(220, 80)">
+    <!-- Pin shadow -->
+    <ellipse cx="2" cy="188" rx="28" ry="8" fill="black" opacity="0.15"/>
+    <!-- Pin body - teardrop -->
+    <path d="M0 180 C-8 140 -56 100 -56 60 A56 56 0 1 1 56 60 C56 100 8 140 0 180 Z" fill="#e53935"/>
+    <!-- Pin highlight -->
+    <path d="M-30 30 A56 56 0 0 1 40 10" fill="none" stroke="white" stroke-width="4" opacity="0.3" stroke-linecap="round"/>
+    <!-- Pin inner circle -->
+    <circle cx="0" cy="55" r="22" fill="white"/>
+    <!-- Inner dot -->
+    <circle cx="0" cy="55" r="11" fill="#e53935"/>
+  </g>
+
+  <!-- Format labels -->
+  <g>
+    <!-- .KML label with subtle background -->
+    <rect x="390" y="165" rx="8" ry="8" width="200" height="70" fill="white" opacity="0.85"/>
+    <text x="490" y="218" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="64" fill="#2c3e50" text-anchor="middle">.KML</text>
+    <!-- .GPX label with subtle background -->
+    <rect x="390" y="250" rx="8" ry="8" width="200" height="70" fill="white" opacity="0.85"/>
+    <text x="490" y="303" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="64" fill="#3a7abd" text-anchor="middle">.GPX</text>
+  </g>
+
+  <!-- Integration name at bottom -->
+  <text x="320" y="560" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="42" fill="#546e7a" text-anchor="middle" opacity="0.6">History Services</text>
+</svg>
