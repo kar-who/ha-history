@@ -13,7 +13,8 @@
     "iot_class": "local_polling",
     "issue_tracker": "https://github.com/davidrapan/ha-history/issues",
     "requirements": [
-        "simplekml"
+        "simplekml",
+        "gpxpy"
     ],
     "config_flow": true,
     "version": "24.08.13"
