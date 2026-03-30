@@ -6,10 +6,13 @@ import logging
 import asyncio
 import aiofiles
 import simplekml
+import gpxpy
+import gpxpy.gpx
 import voluptuous as vol
 
 from datetime import datetime as dt, timedelta as td
 from pathlib import Path
+from xml.etree.ElementTree import Element, SubElement
 
 #from homeassistant.loader import async_get_integration
 #from homeassistant.helpers.entity_platform import EntityPlatform
@@ -28,6 +31,8 @@ _SERVICE_SCHEMA = SERVICE_SCHEMA
 _SERVICE_SCHEMA = _SERVICE_SCHEMA.extend({
     vol.Required("max_gap"): int,
     vol.Required("min_radius"): int,
+    vol.Optional("max_speed"): int,
+    vol.Optional("format"): cv.string,
     vol.Optional("attributes"): cv.string,
     vol.Optional("directory"): cv.string,
     vol.Optional("filename"): cv.string,
@@ -89,6 +94,40 @@ def remove_close_points(points, threshold_km):
             filtered_points.append(point)
     return filtered_points
 
+def filter_gps_jumps(points, max_speed_kmh):
+    if not points or max_speed_kmh <= 0:
+        return points
+
+    filtered = [points[0]]
+    for point in points[1:]:
+        time_delta = point.attributes["length"]
+        if isinstance(time_delta, td):
+            seconds = time_delta.total_seconds()
+        else:
+            seconds = float(time_delta)
+
+        if seconds <= 0:
+            filtered.append(point)
+            continue
+
+        distance_km = point.attributes["distance"]
+        implied_speed = (distance_km / seconds) * 3600
+
+        if implied_speed <= max_speed_kmh:
+            filtered.append(point)
+        else:
+            _LOGGER.debug(
+                "GPS jump filtered: implied speed %.1f km/h exceeds max %d km/h (distance: %.3f km, time: %.0f s)",
+                implied_speed, max_speed_kmh, distance_km, seconds,
+            )
+
+    # Recalculate distance/length for points that now follow a different predecessor
+    for i in range(1, len(filtered)):
+        filtered[i].attributes["distance"] = haversine2(filtered[i - 1].attributes, filtered[i].attributes)
+        filtered[i].attributes["length"] = timediff(filtered[i - 1].last_updated, filtered[i].last_updated)
+
+    return filtered
+
 def group_when(iterable, predicate):
     i, x, size = 0, 0, len(iterable)
     while i < size - 1:
@@ -97,6 +136,75 @@ def group_when(iterable, predicate):
             x = i + 1
         i += 1
     yield iterable[x:size]
+
+def generate_kml(connected_segments, result, attributes):
+    kml = simplekml.Kml(open = 1)
+
+    attributes_list = []
+    if attributes:
+        schema = kml.newschema()
+        attributes_list = [i for i in attributes.split() if i in result[0].attributes]
+        for item in attributes_list:
+            type = simplekml.Types.int if isinstance(result[0].attributes[item], int) else simplekml.Types.string
+            schema.newgxsimplearrayfield(name = item, type = type, displayname = item.capitalize())
+
+    for s in connected_segments:
+        l = 0
+        for p in s:
+            l += p.attributes["distance"]
+        l = round(l, 3)
+        t = s[-1].last_updated - s[0].last_updated
+        linestring = kml.newlinestring(name = (str(dt_util.as_local(s[0].last_updated)) + " - " + str(dt_util.as_local(s[-1].last_updated)) + ", duration: " + str(t) + ", length: " + str(l) + " km"))
+        linestring.timespan.begin = str(s[0].last_updated)
+        linestring.timespan.end = str(s[-1].last_updated)
+        linestring.coords = [(p.attributes["longitude"], p.attributes["latitude"], p.attributes.get("altitude", 0)) for p in s]
+        if attributes:
+            linestring.extendeddata.schemadata.schemaurl = schema.id
+            for item in attributes_list:
+                linestring.extendeddata.schemadata.newgxsimplearraydata(item, [(p.attributes[item]) for p in s])
+
+    return kml.kml()
+
+def generate_gpx(connected_segments, result, attributes):
+    gpx = gpxpy.gpx.GPX()
+
+    attributes_list = []
+    if attributes:
+        attributes_list = [i for i in attributes.split() if i in result[0].attributes]
+
+    for s in connected_segments:
+        l = 0
+        for p in s:
+            l += p.attributes["distance"]
+        l = round(l, 3)
+        t = s[-1].last_updated - s[0].last_updated
+
+        track = gpxpy.gpx.GPXTrack(
+            name = (str(dt_util.as_local(s[0].last_updated)) + " - " + str(dt_util.as_local(s[-1].last_updated)) + ", duration: " + str(t) + ", length: " + str(l) + " km")
+        )
+        gpx.tracks.append(track)
+
+        segment = gpxpy.gpx.GPXTrackSegment()
+        track.segments.append(segment)
+
+        for p in s:
+            point = gpxpy.gpx.GPXTrackPoint(
+                latitude = p.attributes["latitude"],
+                longitude = p.attributes["longitude"],
+                elevation = p.attributes.get("altitude", 0),
+                time = p.last_updated,
+            )
+
+            if attributes_list:
+                ext = Element("extensions")
+                for item in attributes_list:
+                    el = SubElement(ext, item)
+                    el.text = str(p.attributes[item])
+                point.extensions.append(ext)
+
+            segment.points.append(point)
+
+    return gpx.to_xml()
 
 async def async_register_service(hass: HomeAssistant):
     async def export_service(call: ServiceCall) -> ServiceResponse:
@@ -126,6 +234,10 @@ async def async_register_service(hass: HomeAssistant):
                 point.attributes["distance"] = 0
                 point.attributes["length"] = 0
             result.append(point)
+
+        max_speed = call.data.get("max_speed", 0)
+        if max_speed and max_speed > 0:
+            result = filter_gps_jumps(result, max_speed)
 
         min_radius = call.data["min_radius"] / 1000
         max_gap = td(seconds = call.data["max_gap"])
@@ -166,44 +278,20 @@ async def async_register_service(hass: HomeAssistant):
         if not connected_segments or not connected_segments[0]:
             return { "timespan": response["timespan"], "result": "", "message": "Request returned empty response" }
 
-        kml = simplekml.Kml(open = 1)
-
         attributes = ""
         if "attributes" in call.data:
             attributes = call.data["attributes"]
 
-        if attributes:
-            schema = kml.newschema()
-            attributes_list = [i for i in attributes.split() if i in result[0].attributes]
-            for item in attributes_list:
-                type = simplekml.Types.int if isinstance(result[0].attributes[item], int) else simplekml.Types.string
-                schema.newgxsimplearrayfield(name = item, type = type, displayname = item.capitalize())
+        output_format = call.data.get("format", "kml")
 
-        for s in connected_segments:
-            l = 0
-            for p in s:
-                l += p.attributes["distance"]
-            l = round(l, 3)
-            t = s[-1].last_updated - s[0].last_updated
-            linestring = kml.newlinestring(name = (str(dt_util.as_local(s[0].last_updated)) + " - " + str(dt_util.as_local(s[-1].last_updated)) + ", duration: " + str(t) + ", length: " + str(l) + " km"))
-            linestring.timespan.begin = str(s[0].last_updated)
-            linestring.timespan.end = str(s[-1].last_updated)
-            linestring.coords = [(p.attributes["longitude"], p.attributes["latitude"], p.attributes.get("altitude", 0)) for p in s]
-            if attributes:
-                linestring.extendeddata.schemadata.schemaurl = schema.id
-                for item in attributes_list:
-                    linestring.extendeddata.schemadata.newgxsimplearraydata(item, [(p.attributes[item]) for p in s])
-
-        #for s in connected_segments:
-        #    folder = kml.newfolder(name = (str(dt_util.as_local(s[0].last_reported)) + " - " + str(dt_util.as_local(s[-1].last_reported))))
-        #    for p in list(zip(s, s[1:])):
-        #        linestring = folder.newlinestring(name = (str(dt_util.as_local(p[0].last_reported)) + " - " + str(dt_util.as_local(p[1].last_reported))))
-        #        linestring.coords = [(p[0].attributes["longitude"], p[0].attributes["latitude"], p[0].attributes["altitude"]), (p[1].attributes["longitude"], p[1].attributes["latitude"], p[1].attributes["altitude"])]
-        #        linestring.timespan.begin = str(p[0].last_reported)
-        #        linestring.timespan.end = str(p[1].last_reported)
+        if output_format == "gpx":
+            content = generate_gpx(connected_segments, result, attributes)
+            fileext = ".gpx"
+        else:
+            content = generate_kml(connected_segments, result, attributes)
+            fileext = ".kml"
 
         directory = "www/history/"
-        fileext = ".kml"
 
         if "directory" in call.data and call.data["directory"]:
             directory = call.data["directory"]
@@ -229,9 +317,9 @@ async def async_register_service(hass: HomeAssistant):
             file_path = Path(file)
             file_path.parent.mkdir(exist_ok = True, parents = True)
             async with aiofiles.open(file, "w") as f:
-                await f.write(kml.kml())
+                await f.write(content)
 
-        return { "timespan": response["timespan"], "result": kml.kml() }
+        return { "timespan": response["timespan"], "result": content }
 
     #integration = await async_get_integration(hass, "history_services")
     #platform = await integration.async_get_platform("history_services")

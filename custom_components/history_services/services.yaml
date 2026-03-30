@@ -31,7 +31,7 @@ export:
         datetime:
 export_device_tracker:
   name: Device tracker export
-  description: Export device tracker data in KML format
+  description: Export device tracker data in KML or GPX format
   fields:
     entity_id:
       name: Entity
@@ -79,6 +79,25 @@ export_device_tracker:
         number:
           min: 0
           max: 1000
+    max_speed:
+      name: Max speed [km/h]
+      description: Maximum plausible speed — points implying faster travel are filtered as GPS jumps
+      required: false
+      default: 200
+      selector:
+        number:
+          min: 0
+          max: 1000
+    format:
+      name: Format
+      description: Output file format
+      required: false
+      default: kml
+      selector:
+        select:
+          options:
+            - kml
+            - gpx
     attributes:
       name: Attributes
       description: Additional attributes to include
