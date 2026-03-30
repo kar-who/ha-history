@@ -22,8 +22,8 @@ Returns all the historical data of selected entity within given time interval
 
 ### Device tracker export
 
-Id: 'history_services.export_device_tracker'  
-Returns historical data of selected entity of the 'device_tracker' domain in the KML file format  
+Id: 'history_services.export_device_tracker'
+Returns historical data of selected entity of the 'device_tracker' domain in KML or GPX file format
 Saves output into file with default location: 'www/history/device_tracker.kml'
 
 **Configuration Options:**
@@ -36,6 +36,8 @@ Saves output into file with default location: 'www/history/device_tracker.kml'
 | `end` | Ending of the interval | No | - | Datetime object |
 | `max_gap` | Max gap [s]: A period which is not counted as a break | Yes | `300` | Min: `0`, Max: `3600` |
 | `min_radius` | Min radius [m]: A radius in which a group of coords will not be considered a valid path | Yes | `100` | Min: `0`, Max: `1000` |
+| `max_speed` | Max speed [km/h]: Maximum plausible speed — points implying faster travel are filtered as GPS jumps | No | `200` | Min: `0`, Max: `1000` |
+| `format` | Output file format | No | `kml` | `kml` or `gpx` |
 | `attributes` | Additional attributes to include | No | - | e.g. `timestamp distance length course speed` |
 | `directory` | Directory part of save location of the tracking data | No | - | e.g. `www/history/` |
 | `filename` | File name part of save location of the tracking data | No | - | e.g. `device_tracker` |
